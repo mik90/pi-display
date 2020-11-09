@@ -1,6 +1,6 @@
 # pi-display
 Reads pi-hole status and prints it out to eInk display  
-This is to be ran on the same board as th pi hole  
+Run this on the same board as the pi-hole so that the load data is available
 
 ### Display
 - Product page [here](https://www.adafruit.com/product/4687)
