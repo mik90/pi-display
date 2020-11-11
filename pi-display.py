@@ -1,32 +1,24 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import digitalio
 import busio
 import board
 from adafruit_epd.epd import Adafruit_EPD
-from adafruit_epd.il0373 import Adafruit_IL0373
-
-"""
-* Create weather/pihole/twitter-analyzer eInk UI
-  - Guide is [here](https://github.com/adafruit/Adafruit_CircuitPython_EPD)
-  - Product page is [here]((https://www.adafruit.com/product/4687)
-  - Needs 8 wires:
-    - SCK (SPI)
-    - MOSI (SPI)
-    - MISO (SPI)
-    - D12
-    - D11
-    - D10 (opt)
-    - D9 (opt)
-    - D5 (opt)
-  - This can be wired to the pi-hole without sitting directly on
-    the board as a hat (or bonnet, as the brits say)
-  - Display pi hole load avg, block percentage, and other stats
-  - API can be done via shell or telnet
-    - can use Python's telnetlib
-"""
+from adafruit_epd.ssd1675 import Adafruit_SSD1675
+from telnetlib import Telnet
 
 
-def main():
+def get_pihole_stats():
+    with Telnet('pi.hole', 4711) as tn:
+        tn.write(">version")
+        print(f"FTL Version={tn.read_all().decode('ascii')}")
+
+# TODO Get loadavg
+
+# TODO Get memory usage
+
+# TODO Get temperature
+
+def setup_display():
     # create the spi device and pins we will need
     spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
     ecs = digitalio.DigitalInOut(board.D12)
@@ -38,10 +30,10 @@ def main():
 
     # give them all to our driver
     print("Creating display")
-    # TODO Use the monochrome 2.13 inch display
-    display = Adafruit_IL0373(104, 212, spi,          # 2.13" Tri-color display
-                              cs_pin=ecs, dc_pin=dc, sramcs_pin=srcs,
-                              rst_pin=rst, busy_pin=busy)
+    display = Adafruit_SSD1675(
+        122, 250, spi,
+        cs_pin=ecs, dc_pin=dc, sramcs_pin=srcs,
+        rst_pin=rst, busy_pin=busy)
 
     display.rotation = 1
 
@@ -53,6 +45,10 @@ def main():
     print("Draw text")
     display.text('hello world', 25, 10, Adafruit_EPD.BLACK)
     display.display()
+
+
+def main():
+    get_pihole_stats()
 
 
 if __name__ == '__main__':
