@@ -22,3 +22,4 @@ Needs 8 wires:
 ### Pihole API
 - Telnet API [here](https://docs.pi-hole.net/ftldns/telnet-api/)
     - Can use telnetlib for this
+- Python telnetlib docs [here](https://docs.python.org/3.7/library/telnetlib.html)

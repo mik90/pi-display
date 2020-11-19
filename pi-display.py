@@ -2,15 +2,18 @@
 import digitalio
 import busio
 import board
+import sys
 from adafruit_epd.epd import Adafruit_EPD
 from adafruit_epd.ssd1675 import Adafruit_SSD1675
 from telnetlib import Telnet
 
 
-def get_pihole_stats():
-    with Telnet('pi.hole', 4711) as tn:
-        tn.write(">version")
-        print(f"FTL Version={tn.read_all().decode('ascii')}")
+def get_pihole_version():
+    with Telnet('127.0.0.1', 4711) as tn:
+        tn.write(b">version")
+        print("wrote \">version\"")
+        response = tn.read_until(b"---EOM---")
+        print(f"Version response={response.decode('ascii')}")
 
 # TODO Get loadavg
 
@@ -48,7 +51,10 @@ def setup_display():
 
 
 def main():
-    get_pihole_stats()
+    print("--------------------------------"
+          f"\n{sys.argv[0]}\n"
+          "--------------------------------")
+    get_pihole_version()
 
 
 if __name__ == '__main__':
