@@ -3,23 +3,45 @@ import digitalio
 import busio
 import board
 import sys
+import os
+import psutil
 from adafruit_epd.epd import Adafruit_EPD
 from adafruit_epd.ssd1675 import Adafruit_SSD1675
 from telnetlib import Telnet
 
+TELNET_EOM_BYTE_STR = b"---EOM---"
+TELNET_EOM_STR = "---EOM---"
 
-def get_pihole_version():
-    with Telnet('127.0.0.1', 4711) as tn:
-        tn.write(b">version")
-        print("wrote \">version\"")
-        response = tn.read_until(b"---EOM---")
-        print(f"Version response={response.decode('ascii')}")
 
-# TODO Get loadavg
+def strip_eom(text):
+    if text.endswith(TELNET_EOM_STR):
+        return text[:-len(TELNET_EOM_STR)].strip()
+    else:
+        return text.strip()
 
-# TODO Get memory usage
 
-# TODO Get temperature
+def get_pihole_version(tn: Telnet):
+    tn.write(b">version")
+    print("Getting pihole version...")
+    response = tn.read_until(TELNET_EOM_BYTE_STR).decode('ascii')
+    return strip_eom(response)
+
+
+def get_pihole_stats(tn: Telnet):
+    tn.write(b">stats")
+    print("Getting pihole stats...")
+    response = tn.read_until(TELNET_EOM_BYTE_STR).decode('ascii')
+    return strip_eom(response)
+
+
+"""
+TODO How to get info from both pi-holes? 
+      - Expose telnet api on a lan-visible interface for pi-zero
+          - Would need to forward port 4711 from localhost to something in 192.168.1.x
+          - I think either eth0 or wlan0 would work
+      - Could ssh in to the pi-zero but that seems hacky
+"""
+
 
 def setup_display():
     # create the spi device and pins we will need
@@ -54,7 +76,37 @@ def main():
     print("--------------------------------"
           f"\n{sys.argv[0]}\n"
           "--------------------------------")
-    get_pihole_version()
+    with Telnet('127.0.0.1', 4711) as tn:
+        version_info = get_pihole_version(tn)
+        stats = get_pihole_stats(tn)
+        cpu_usage = psutil.cpu_percent(interval=1, percpu=True)
+        loadavg = os.getloadavg()
+        vmem = psutil.virtual_memory()
+        root_disk_usage = psutil.disk_usage('/')
+        temp_info = psutil.sensors_temperatures()
+        boot_time = psutil.boot_time()
+        print("Closing telnet connection\n")
+
+    SEPARATOR = "\n------------------\n"
+    print(
+        f"{SEPARATOR}"
+        f"pi-hole version info:\n\n{version_info}"
+        f"{SEPARATOR}"
+        f"ad-blocking stats:\n\n{stats}"
+        f"{SEPARATOR}"
+        f"system load avg:{loadavg}"
+        f"{SEPARATOR}"
+        f"cpu usage:{cpu_usage}"
+        f"{SEPARATOR}"
+        f"temp (celsius):{temp_info}"
+        f"{SEPARATOR}"
+        f"memory:{vmem}"
+        f"{SEPARATOR}"
+        f"root disk usage:{root_disk_usage}"
+        f"{SEPARATOR}"
+        f"boot_time:{boot_time}"
+        f"{SEPARATOR}"
+    )
 
 
 if __name__ == '__main__':
