@@ -5,12 +5,25 @@ import board
 import sys
 import os
 import psutil
+import logging
 from adafruit_epd.epd import Adafruit_EPD
 from adafruit_epd.ssd1675 import Adafruit_SSD1675
 from telnetlib import Telnet
 
 TELNET_EOM_BYTE_STR = b"---EOM---"
 TELNET_EOM_STR = "---EOM---"
+
+
+def setup_logger():
+    log = logging.getLogger('pi-display')
+    log.setLevel(logging.DEBUG)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    log.addHandler(console_handler)
+    return log
+
+
+log = setup_logger()
 
 
 def strip_eom(text):
@@ -22,24 +35,26 @@ def strip_eom(text):
 
 def get_pihole_version(tn: Telnet):
     tn.write(b">version")
-    print("Getting pihole version...")
+    log.info("Getting pihole version...")
     response = tn.read_until(TELNET_EOM_BYTE_STR).decode('ascii')
     return strip_eom(response)
 
 
 def get_pihole_stats(tn: Telnet):
     tn.write(b">stats")
-    print("Getting pihole stats...")
+    log.info("Getting pihole stats...")
     response = tn.read_until(TELNET_EOM_BYTE_STR).decode('ascii')
     return strip_eom(response)
 
 
 """
-TODO How to get info from both pi-holes? 
+TODO How to get Pi-hole info from both pi-holes? 
       - Expose telnet api on a lan-visible interface for pi-zero
           - Would need to forward port 4711 from localhost to something in 192.168.1.x
           - I think either eth0 or wlan0 would work
-      - Could ssh in to the pi-zero but that seems hacky
+TODO How to get system info from both pi-holes?
+    - Create telnet api and have a python program running on both machines
+        - Pi_3b is server, pi zero would be client
 """
 
 
@@ -48,13 +63,12 @@ def setup_display():
     spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
     ecs = digitalio.DigitalInOut(board.D12)
     dc = digitalio.DigitalInOut(board.D11)
-    # can be None to use internal memory
-    srcs = digitalio.DigitalInOut(board.D10)
-    rst = digitalio.DigitalInOut(board.D9)    # can be None to not use this pin
-    busy = digitalio.DigitalInOut(board.D5)   # can be None to not use this pin
 
-    # give them all to our driver
-    print("Creating display")
+    srcs = digitalio.DigitalInOut(board.D10)
+    rst = digitalio.DigitalInOut(board.D9)
+    busy = digitalio.DigitalInOut(board.D5)
+
+    log.info("Creating display")
     display = Adafruit_SSD1675(
         122, 250, spi,
         cs_pin=ecs, dc_pin=dc, sramcs_pin=srcs,
@@ -63,19 +77,19 @@ def setup_display():
     display.rotation = 1
 
     # clear the buffer
-    print("Clear buffer")
+    log.info("Clear buffer")
     display.fill(Adafruit_EPD.WHITE)
     display.pixel(10, 100, Adafruit_EPD.BLACK)
 
-    print("Draw text")
+    log.info("Draw text")
     display.text('hello world', 25, 10, Adafruit_EPD.BLACK)
     display.display()
 
 
 def main():
-    print("--------------------------------"
-          f"\n{sys.argv[0]}\n"
-          "--------------------------------")
+    log.info("--------------------------------"
+             f"\n{sys.argv[0]}\n"
+             "--------------------------------")
     with Telnet('127.0.0.1', 4711) as tn:
         version_info = get_pihole_version(tn)
         stats = get_pihole_stats(tn)
@@ -85,10 +99,10 @@ def main():
         root_disk_usage = psutil.disk_usage('/')
         temp_info = psutil.sensors_temperatures()
         boot_time = psutil.boot_time()
-        print("Closing telnet connection\n")
+        log.info("Closing telnet connection\n")
 
     SEPARATOR = "\n------------------\n"
-    print(
+    log.info(
         f"{SEPARATOR}"
         f"pi-hole version info:\n\n{version_info}"
         f"{SEPARATOR}"
