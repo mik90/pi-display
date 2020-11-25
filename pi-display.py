@@ -139,7 +139,7 @@ class PiDisplayController:
         # Done even if drawing isn't enabled so the log isn't spammed
         self.wait_for_display_interval()
 
-    def run(self):
+    def draw_all_info_pages(self):
         version_info = self.get_pihole_version(self.tn)
         # Page 1:
         self.update_display(f"pi-hole version info:\n{version_info}")
@@ -178,7 +178,9 @@ def main():
                         help='Print to log instead of display')
     args = parser.parse_args()
     disp = PiDisplayController(drawing_enabled=not args.drawing_disabled)
-    disp.run()
+
+    while True:
+        disp.draw_all_info_pages()
 
 
 if __name__ == '__main__':
