@@ -8,6 +8,7 @@ import os
 import psutil
 import logging
 import time
+import textwrap
 from adafruit_epd.epd import Adafruit_EPD
 from adafruit_epd.ssd1675 import Adafruit_SSD1675
 from telnetlib import Telnet
@@ -65,6 +66,10 @@ class PiDisplayController:
 
     def __init__(self, drawing_enabled: bool):
         self.drawing_enabled = drawing_enabled
+        # 0 at far left, 250 at far right
+        self.x_max = 250
+        # 0 is at top of screen, 122 at bottom
+        self.y_max = 122
 
         if self.drawing_enabled:
             log.info("Drawing enabled, writing output to eink display")
@@ -77,7 +82,7 @@ class PiDisplayController:
             self.sramcs_pin = None
 
             self.eink = Adafruit_SSD1675(
-                122, 250, self.spi,
+                self.y_max, self.x_max, self.spi,
                 cs_pin=self.ecs, dc_pin=self.dc, sramcs_pin=self.sramcs_pin,
                 rst_pin=self.rst, busy_pin=self.busy)
             log.info("Created display")
@@ -107,17 +112,21 @@ class PiDisplayController:
         loadavg = os.getloadavg()
         log.info("Pulled performance data off os")
         cpu_usage = psutil.cpu_percent(interval=1, percpu=True)
-        vmem = psutil.virtual_memory()
-        root_disk_usage = psutil.disk_usage('/')
-        temp_info = psutil.sensors_temperatures()
+        # Some values are unusually long an will require wrapping
+        vmem = textwrap.fill(str(psutil.virtual_memory()), self.x_max)
+        root_disk_usage = textwrap.fill(
+            str(psutil.disk_usage('/')), self.x_max)
+        temp_info = textwrap.fill(
+            str(psutil.sensors_temperatures()), self.x_max)
         boot_time = psutil.boot_time()
         log.info("Pulled performance data off psutil")
+
         return (
-            f"system load avg:{loadavg}\n"
+            f"load avg:{loadavg}\n"
             f"cpu usage:{cpu_usage}\n"
-            f"temp (celsius):{temp_info}\n"
-            f"memory:{vmem}\n"
-            f"root disk usage:{root_disk_usage}\n"
+            f"temp (c):{temp_info}\n"
+            f"{vmem}\n"
+            f"{root_disk_usage}\n"
             f"boot_time:{boot_time}"
         )
 
@@ -157,15 +166,21 @@ class PiDisplayController:
         log.info("Closed telnet connection")
 
     def wait_for_display_interval(self):
-        DISPLAY_WRITE_INTERVAL_SEC = 60 * 3
-        log.info(
-            f"Waiting for {DISPLAY_WRITE_INTERVAL_SEC} seconds before writing to display")
-        time_waited_sec = 0
-        while time_waited_sec < DISPLAY_WRITE_INTERVAL_SEC:
-            time.sleep(30)
-            time_waited_sec += 30
+        if self.drawing_enabled:
+            DISPLAY_WRITE_INTERVAL_SEC = 180
             log.info(
-                f"{DISPLAY_WRITE_INTERVAL_SEC - time_waited_sec} seconds left to wait")
+                f"Waiting for {DISPLAY_WRITE_INTERVAL_SEC} seconds before writing to display")
+            time_waited_sec = 0
+            while time_waited_sec < DISPLAY_WRITE_INTERVAL_SEC:
+                time.sleep(30)
+                time_waited_sec += 30
+                log.info(
+                    f"{DISPLAY_WRITE_INTERVAL_SEC - time_waited_sec} seconds left to wait")
+        else:
+            DISPLAY_WRITE_INTERVAL_SEC = 1
+            log.info(
+                f"Waiting for {DISPLAY_WRITE_INTERVAL_SEC} seconds before writing to display")
+            time.sleep(DISPLAY_WRITE_INTERVAL_SEC)
 
 
 def main():
@@ -179,7 +194,11 @@ def main():
     args = parser.parse_args()
     disp = PiDisplayController(drawing_enabled=not args.drawing_disabled)
 
-    while True:
+    if disp.drawing_enabled:
+        while True:
+            disp.draw_all_info_pages()
+    else:
+        # Only draw once to terminal
         disp.draw_all_info_pages()
 
 

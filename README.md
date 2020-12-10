@@ -34,3 +34,9 @@ The font file "font5x8.bin" is pulled from the Adafruit example [here](https://g
 - Pull down this repo
 - Install Python dependencies with `pip3 install -r requirements.txt`
 - Run `python3 pi-display.py`
+
+### Systemd service
+- `ln -sv $PWD/pi-display.service /etc/systemd/system/pi-display.service`
+
+### Current issues
+- Text placement isn't great, it no longer overruns the 250 char width but it does overrun the 122 char height

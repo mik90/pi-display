@@ -1,0 +1,14 @@
+[Unit]
+Description=Pi-display driver
+After=network.target
+StartLimitIntervalSec=0[Service]
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/Development/pi-display
+ExecStart=/usr/bin/python3 /home/pi/Development/pi-display/pi-display.py
+Restart=never
+Type=simple
