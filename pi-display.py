@@ -67,6 +67,7 @@ class PiDisplayController:
     def __init__(self, drawing_enabled: bool):
         self.drawing_enabled = drawing_enabled
         # 0 at far left, 250 at far right
+        #self.x_max = 250
         self.x_max = 250
         # 0 is at top of screen, 122 at bottom
         self.y_max = 122
@@ -112,12 +113,16 @@ class PiDisplayController:
         loadavg = os.getloadavg()
         log.info("Pulled performance data off os")
         cpu_usage = psutil.cpu_percent(interval=1, percpu=True)
-        # Some values are unusually long an will require wrapping
-        vmem = textwrap.fill(str(psutil.virtual_memory()), self.x_max)
+        # TODO Move this logic to update_display
+        # Font is 5 on x axis, 8 on y
+        wrap_max = int(self.y_max - 5)
+        # Some values are unusually long and will require wrapping
+        vmem = textwrap.fill(str(psutil.virtual_memory()), wrap_max)
+        #vmem = textwrap.fill(str(psutil.virtual_memory()), 80)
         root_disk_usage = textwrap.fill(
-            str(psutil.disk_usage('/')), self.x_max)
+            str(psutil.disk_usage('/')), wrap_max)
         temp_info = textwrap.fill(
-            str(psutil.sensors_temperatures()), self.x_max)
+            str(psutil.sensors_temperatures()), wrap_max)
         boot_time = psutil.boot_time()
         log.info("Pulled performance data off psutil")
 
@@ -136,14 +141,16 @@ class PiDisplayController:
             self.eink.fill(Adafruit_EPD.WHITE)
             x = 1
             y = 1
+            # TODO Figure out if this is too big to fit on the page
+            # TODO check width of lines and amount of lines
             self.eink.text(text, x, y, Adafruit_EPD.BLACK)
             log.info("Drawing eink buffer")
             self.eink.display()
         else:
             log.info(f"Not drawn to display:")
-            log.info(f"------------------------------")
+            log.info(f"{'-' * 122}")
             log.info(f"{text}")
-            log.info(f"------------------------------")
+            log.info(f"{'-' * 122}")
 
         # Done even if drawing isn't enabled so the log isn't spammed
         self.wait_for_display_interval()
